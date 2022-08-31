@@ -2,7 +2,7 @@
 # - Creates a new registered app in Azure AD (AzureAD)
 # - Adds a password credential to it (AzureAD)
 # - Creates a service principal for that app (Microsoft.Graph.Applications)
-# - Creates a new dedicated role for that service principal which has only access to Azure Sentinel stuff (Az)
+# - Creates a new dedicated role for that service principal which has only access to Azure Monitor assets (Az)
 # - Assigns the service principal to that role (Az)
 
 # Tested date 08/30/2022
@@ -54,7 +54,7 @@ ForEach ($subIndex in $subIndexes)
         $tenantId = $subscriptions[$subIndex-1].TenantId        
     }
     elseif ($tenantId -ne $subscriptions[$subIndex-1].TenantId) {
-        Write-Error "Please only select subscription within the same tenant. Provisioning stops here."
+        Write-Error "Please only select subscriptions within the same tenant. Provisioning stops here."
         exit
     }
 }
@@ -104,7 +104,6 @@ if ($null -eq $app) {
         Remove-AzRoleAssignment -ObjectId $spn.Id -RoleDefinitionName $role.RoleDefinitionName -Scope $role.Scope
     }
 
-
     # Create new Role
     $role = Get-AzRoleDefinition -Name "Contributor"
     $role.Id = $null
@@ -125,7 +124,7 @@ if ($null -eq $app) {
     }
 
 
-    Write-Output "Creating new role in Azure, which may take some seconds..."
+    Write-Output "Creating new custom role '$SIGNL4AzureRoleName' in Azure, which may take some seconds..."
     New-AzRoleDefinition -Role $role
 
 
@@ -149,16 +148,12 @@ ForEach ($subIndex in $subIndexes)
 
     Write-Output ""
     Write-Output ""
-    Write-Output "Provisioning application '$SIGNL4AppNameAzure' to a new role in subscription '$subName'..."
+    Write-Output "Provisioning application '$SIGNL4AppNameAzure' to custom role '$SIGNL4AzureRoleName' in subscription '$subName'..."
+    New-AzRoleAssignment -ObjectId $spn.Id -RoleDefinitionName $SIGNL4AzureRoleName -Scope $subScope   
 
-
-    # Assign SPN to that role
-    Write-Output "Role created in Azure, adding SPN to that role..."
-    New-AzRoleAssignment -ObjectId $spn.Id -RoleDefinitionName $SIGNL4AzureRoleName -Scope $subScope
-    
 
     Write-Output ""
     Write-Output ""
-    Write-Output "*** All set for subscription '$subName', please enter these details in the SIGNL4 AzureMonitor App config... ***"
+    Write-Output "*** All set for subscription '$subName', please enter these details in the SIGNL4 Azure Monitor connector app config... ***"
     $s4config | Format-List -Property SubscriptionId,TenantId,ClientId,ClientSecret
 }
